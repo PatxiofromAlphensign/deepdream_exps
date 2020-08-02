@@ -93,14 +93,12 @@ def deep_dream_static_image(config, img):
             print(input_tensor  -  (1 - input_tensor_p))
     	    
             input_tensor = (input_tensor  *  (1 - input_tensor_p))
-	    #plt
+
 
 
 
         img = utils.pytorch_output_adapter(input_tensor)
-
-    return utils.post_process_numpy_image(img)  #utils.post_process_numpy_image(img)
-    return (img.transpose(2,0,1)/input_tensor.detach().cpu()[0]).detach().numpy().T  #utils.post_process_numpy_image(img)
+    return utils.post_process_numpy_image(img)
 
 
 # Feed the output dreamed image back to the input and repeat
@@ -145,7 +143,21 @@ def deep_dream_video(config):
 
     shutil.rmtree(tmp_input_dir)  # remove tmp files
     print(f'Deleted tmp frame dump directory {tmp_input_dir}.')
-def args_p():
+
+
+if __name__ == "__main__":
+    #
+    # Fixed args - don't change these unless you have a good reason
+    #
+    inputs_path = os.path.join(os.path.dirname(__file__), 'data', 'input')
+    out_images_path = os.path.join(os.path.dirname(__file__), 'data', 'out-images')
+    out_videos_path = os.path.join(os.path.dirname(__file__), 'data', 'out-videos')
+    os.makedirs(out_images_path, exist_ok=True)
+    os.makedirs(out_videos_path, exist_ok=True)
+
+    #
+    # Modifiable args - feel free to play with these (only a small subset is exposed by design to avoid cluttering)
+    #
     parser = argparse.ArgumentParser()
     # Common params
     parser.add_argument("--input", type=str, help="Input IMAGE or VIDEO name that will be used for dreaming", default='figures.jpg')
@@ -164,8 +176,8 @@ def args_p():
     parser.add_argument("--is_video", type=bool, help="Create DeepDream video - default is DeepDream static image", default=False)
     parser.add_argument("--video_length", type=int, help="Number of video frames to produce for ouroboros", default=30)
     parser.add_argument("--frame_transform", choices=SupportedTransforms,
-			help="Transform used to transform the output frame and feed it back to the network input",
-			default=SupportedTransforms.ZOOM_ROTATE)
+                        help="Transform used to transform the output frame and feed it back to the network input",
+                        default=SupportedTransforms.ZOOM_ROTATE)
 
     # deep_dream_video specific arguments (ignore for other 2 functions)
     parser.add_argument("--blend", type=float, help="Blend coefficient for video creation", default=0.85)
@@ -176,42 +188,16 @@ def args_p():
     parser.add_argument("--smoothing_coefficient", type=float, help='Directly controls standard deviation for gradient smoothing', default=0.5)
     parser.add_argument("--use_noise", type=bool, help="Use noise as a starting point instead of input image", default=False)
     args = parser.parse_args()
-    return args
 
-
-def configfy():
-
-    inputs_path = os.path.join(os.path.dirname(__file__), 'data', 'input')
-    out_images_path = os.path.join(os.path.dirname(__file__), 'data', 'out-images')
-    out_videos_path = os.path.join(os.path.dirname(__file__), 'data', 'out-videos')
-    os.makedirs(out_images_path, exist_ok=True)
-    os.makedirs(out_videos_path, exist_ok=True)
-
-
+    # Wrapping configuration into a dictionary - keeping things clean
     config = dict()
-
-    for arg in vars(args_p()):
-        config[arg] = getattr(args_p(), arg)
+    for arg in vars(args):
+        config[arg] = getattr(args, arg)
     config['inputs_path'] = inputs_path
     config['out_images_path'] = out_images_path
     config['out_videos_path'] = out_videos_path
     config['dump_dir'] = config['out_videos_path'] if config['is_video'] else config['out_images_path']
     config['dump_dir'] = os.path.join(config['dump_dir'], f'{config["model"].name}_{config["pretrained_weights"].name}')
-    return config 
-
-
-
-if __name__ == "__main__":
-    #
-    # Fixed args - don't change these unless you have a good reason
-    #
-        #
-    # Modifiable args - feel free to play with these (only a small subset is exposed by design to avoid cluttering)
-    #
-    # Wrapping configuration into a dictionary - keeping things clean
-
-
-    config = configfy()
 
     # DeepDream algorithm in 3 flavours: static image, video and ouroboros (feeding net output to it's input)
     if any([config['input'].endswith(video_ext) for video_ext in SUPPORTED_VIDEO_FORMATS]):  # only support mp4 atm
@@ -220,5 +206,5 @@ if __name__ == "__main__":
         deep_dream_video_ouroboros(config)
     else:
         img = deep_dream_static_image(config, img=None)  # img=None -> will be loaded inside of deep_dream_static_image
-        utils.save_and_maybe_display_image(config, img, should_display=True)
+        utils.save_and_maybe_display_image(config, img, should_display=config['should_display'])
 

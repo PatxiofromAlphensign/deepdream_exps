@@ -70,7 +70,13 @@ def pytorch_input_adapter(img, device):
 
 
 def pytorch_output_adapter(img):
-    return np.moveaxis(img.to('cpu').detach().numpy()[0], 0, 2)
+	
+    try:
+    	mvaxis_cuda = np.moveaxis(img.to('cuda').detach().numpy()[0], 0, 2)
+    except:
+
+    	mvaxis_cuda = np.moveaxis(img.to('cpu').detach().numpy()[0], 0, 2)
+    return mvaxis_cuda 
 
 
 def build_image_name(config):
@@ -78,6 +84,8 @@ def build_image_name(config):
     layers = '_'.join(config['layers_to_use'])
     # Looks awful but makes the creation process transparent for other creators
     img_name = f'{input_name}_width_{config["img_width"]}_model_{config["model"].name}_{config["pretrained_weights"].name}_{layers}_pyrsize_{config["pyramid_size"]}_pyrratio_{config["pyramid_ratio"]}_iter_{config["num_gradient_ascent_iterations"]}_lr_{config["lr"]}_shift_{config["spatial_shift_size"]}.jpg'
+    img_name = os.path.join(input_name, layers) + '.jpg'
+
     return img_name
 
 
@@ -96,9 +104,9 @@ def save_and_maybe_display_image(config, dump_img, should_display=True, name_mod
 
     if dump_img.dtype != np.uint8:
         dump_img = (dump_img*255).astype(np.uint8)
-
+    print(os.path.join(dump_dir, dump_img_name))
     # step3: write image to the file system
-    cv.imwrite(os.path.join(dump_dir, dump_img_name), dump_img[:, :, ::-1])  # ::-1 because opencv expects BGR (and not RGB) format...
+    cv.imwrite(os.path.join(dump_dir, dump_img_name), dump_img)  # ::-1 because opencv expects BGR (and not RGB) format...
 
     # step4: maybe display part of the function
     if should_display:
